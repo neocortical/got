@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"sort"
 
@@ -55,7 +54,7 @@ func (t *Tree) Serialize() []byte {
 		buf.Write(oidBytes)
 	}
 
-	return append([]byte(fmt.Sprintf("%s %d\x00", t.Type(), buf.Len())), buf.Bytes()...)
+	return buf.Bytes()
 }
 
 func BuildFromIndex(entries []*index.Entry) (result *Tree, err error) {

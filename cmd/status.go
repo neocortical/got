@@ -111,7 +111,6 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 		return fmt.Errorf("error walking workspace: %w", err)
 	}
 
-	fmt.Println(workspaceFileset)
 	for _, entry := range idx.Entries() {
 		fmt.Println(entry.Name())
 		if _, stillExists := workspaceFileset[entry.Name()]; !stillExists {

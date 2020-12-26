@@ -1,10 +1,5 @@
 package blob
 
-import (
-	"bytes"
-	"strconv"
-)
-
 type Blob struct {
 	data []byte
 }
@@ -18,11 +13,5 @@ func (b Blob) Type() string {
 }
 
 func (b Blob) Serialize() []byte {
-	var buf bytes.Buffer
-	buf.WriteString(b.Type())
-	buf.WriteRune(' ')
-	buf.WriteString(strconv.Itoa(len(b.data)))
-	buf.WriteRune('\x00')
-	buf.Write(b.data)
-	return buf.Bytes()
+	return b.data
 }

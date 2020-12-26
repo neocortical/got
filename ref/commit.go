@@ -43,5 +43,5 @@ func (c Commit) Serialize() []byte {
 
 	data := fmt.Sprintf("tree %s\n%sauthor %s\ncommitter %s\n\n%s\n", c.oid, parentLine, c.author.String(), c.author.String(), c.message)
 
-	return append([]byte(fmt.Sprintf("%s %d\x00", c.Type(), len(data))), []byte(data)...)
+	return []byte(data)
 }

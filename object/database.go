@@ -1,11 +1,14 @@
 package object
 
 import (
+	"bufio"
 	"bytes"
 	"compress/zlib"
 	"fmt"
+	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
+	"strconv"
 
 	"github.com/neocortical/got/lock"
 )
@@ -17,6 +20,7 @@ type Storable interface {
 
 type Database interface {
 	Store(s Storable) (oid string, err error)
+	Read(oid string) (result Storable, err error)
 }
 
 type database struct {
@@ -33,11 +37,13 @@ func (db *database) Store(s Storable) (oid string, err error) {
 	data := s.Serialize()
 	oid = GenerateOID(data)
 
-	dir := path.Join(db.dir, oid[0:2])
+	objectFilename := db.objectPath(oid)
+	dir, _ := filepath.Split(objectFilename)
+
 	_, err = os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = os.Mkdir(dir, os.ModeDir|0755)
+			err = os.MkdirAll(dir, os.ModeDir|0755)
 		}
 	}
 	if err != nil {
@@ -46,6 +52,11 @@ func (db *database) Store(s Storable) (oid string, err error) {
 
 	var buf bytes.Buffer
 	w := zlib.NewWriter(&buf)
+	_, err = w.Write([]byte(fmt.Sprintf("%s %d\x00", s.Type(), len(data))))
+	if err != nil {
+		return
+	}
+
 	_, err = w.Write(data)
 	if err != nil {
 		return
@@ -53,12 +64,11 @@ func (db *database) Store(s Storable) (oid string, err error) {
 	w.Close()
 
 	// short circuit if object exists
-	filename := path.Join(db.dir, oid[0:2], oid[2:])
-	if _, err = os.Stat(filename); err == nil {
+	if _, err = os.Stat(objectFilename); err == nil {
 		return
 	}
 
-	l := lock.NewLockfile(filename)
+	l := lock.NewLockfile(objectFilename)
 	err = l.Acquire()
 	if err != nil {
 		return oid, fmt.Errorf("Unable to lock object for writing: %w", err)
@@ -75,4 +85,39 @@ func (db *database) Store(s Storable) (oid string, err error) {
 	}
 
 	return
+}
+
+func (db *database) Read(oid string) (_ Storable, err error) {
+	result := &genericStorable{}
+
+	f, err := os.Open(db.objectPath(oid))
+	if err != nil {
+		return nil, err
+	}
+
+	unzipper, err := zlib.NewReader(f)
+	if err != nil {
+		return nil, err
+	}
+
+	buf := bufio.NewReader(unzipper)
+
+	objectType, err := buf.ReadString(0x20)
+	if err != nil {
+		return nil, err
+	}
+	result.storableType = objectType[:len(objectType)-1]
+
+	sizeString, err := buf.ReadString(0x00)
+	if err != nil {
+		return nil, err
+	}
+
+	result.size, err = strconv.Atoi(sizeString[:len(sizeString)-1])
+	if err != nil {
+		return nil, err
+	}
+
+	result.data, err = ioutil.ReadAll(buf)
+	return result, err
 }
