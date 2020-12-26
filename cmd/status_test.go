@@ -23,7 +23,7 @@ func TestListUntrackedFilesInOrder(t *testing.T) {
 	expected := "?? anotherfile.txt\n?? file.txt\n"
 
 	if outbuf.String() != expected {
-		t.Errorf("expected output '%s' but got: '%s'", expected, outbuf.String())
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
 	}
 }
 
@@ -53,7 +53,7 @@ func TestListOnlyUntrackedFilesInOrder(t *testing.T) {
 	expected := "?? file2.txt\n"
 
 	if outbuf.String() != expected {
-		t.Errorf("expected output '%s' but got: '%s'", expected, outbuf.String())
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
 	}
 }
 
@@ -76,7 +76,7 @@ func TestListUntrackedDirectoriesNotContents(t *testing.T) {
 	expected := "?? dir/\n?? file1.txt\n"
 
 	if outbuf.String() != expected {
-		t.Errorf("expected output '%s' but got: '%s'", expected, outbuf.String())
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
 	}
 }
 
@@ -106,7 +106,7 @@ func TestListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 	expected := "?? a/b/c/\n?? a/outer.txt\n"
 
 	if outbuf.String() != expected {
-		t.Errorf("expected output '%s' but got: '%s'", expected, outbuf.String())
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
 	}
 }
 
@@ -128,6 +128,69 @@ func TestDontListUntrackedEmptyDirectories(t *testing.T) {
 	expected := ""
 
 	if outbuf.String() != expected {
-		t.Errorf("expected output '%s' but got: '%s'", expected, outbuf.String())
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
+	}
+}
+
+func setupStatusChangedFixtureOrDie(t *testing.T) {
+	writeFile(t, "1.txt", "one")
+	writeFile(t, "a/2.txt", "two")
+	writeFile(t, "a/b/3.txt", "three")
+	initOrDie(t)
+
+	err := executeAdd(addCmd, []string{"."})
+	if err != nil {
+		t.Fatalf("expected no errors during add but got: %v", err)
+	}
+
+	commitMessage = "commit message"
+	err = executeCommit(addCmd, nil)
+	if err != nil {
+		t.Fatalf("expected no errors during commit but got: %v", err)
+	}
+}
+
+func TestPrintNothingWhenNothingChanged(t *testing.T) {
+	outbuf, errbuf := setUpTestWorkspace(t, nil)
+	defer tearDownTestWorkspace()
+
+	setupStatusChangedFixtureOrDie(t)
+	outbuf.Reset()
+
+	err := executeStatus(statusCmd, []string{})
+	if err != nil {
+		t.Errorf("expected no errors but got: %v", err)
+	}
+	if errbuf.Len() > 0 {
+		t.Errorf("expected no error output but got: %s", errbuf.String())
+	}
+	expected := ""
+
+	if outbuf.String() != expected {
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
+	}
+}
+
+func TestReportsFilesWithChangedContents(t *testing.T) {
+	outbuf, errbuf := setUpTestWorkspace(t, nil)
+	defer tearDownTestWorkspace()
+
+	setupStatusChangedFixtureOrDie(t)
+	outbuf.Reset()
+
+	writeFile(t, "1.txt", "changed")
+	writeFile(t, "a/2.txt", "modified")
+
+	err := executeStatus(statusCmd, []string{})
+	if err != nil {
+		t.Errorf("expected no errors but got: %v", err)
+	}
+	if errbuf.Len() > 0 {
+		t.Errorf("expected no error output but got: %s", errbuf.String())
+	}
+	expected := " M 1.txt\n M a/2.txt\n"
+
+	if outbuf.String() != expected {
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
 	}
 }

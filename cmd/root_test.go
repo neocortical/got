@@ -43,13 +43,18 @@ func tearDownTestWorkspace() {
 	wd = ""
 }
 
-func writeFile(t *testing.T, filename string) {
+func writeFile(t *testing.T, filename string, data ...string) {
 	dir, _ := filepath.Split(filename)
 	if dir != "" {
 		mkdir(t, dir)
 	}
 
-	err := ioutil.WriteFile(path.Join(wd, filename), []byte{}, 0644)
+	var buf = new(bytes.Buffer)
+	for _, d := range data {
+		buf.WriteString(d)
+	}
+
+	err := ioutil.WriteFile(path.Join(wd, filename), buf.Bytes(), 0644)
 	if err != nil {
 		t.Fatalf("error writing file: %v", err)
 	}

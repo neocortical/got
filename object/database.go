@@ -31,7 +31,7 @@ func NewDatabase(dir string) Database {
 
 func (db *database) Store(s Storable) (oid string, err error) {
 	data := s.Serialize()
-	oid = generateOID(data)
+	oid = GenerateOID(data)
 
 	dir := path.Join(db.dir, oid[0:2])
 	_, err = os.Stat(dir)

@@ -45,6 +45,8 @@ type Index interface {
 	Rollback()
 	IsTracked(path string) bool
 	FirstUntrackedPath(path string) string
+	IsMetadataModified(path string, info os.FileInfo) (statsModified, timesModified bool)
+	GetEntry(path string) (e *Entry, exists bool)
 }
 
 type index struct {
@@ -313,4 +315,26 @@ func (i *index) FirstUntrackedPath(path string) string {
 	}
 
 	return path
+}
+
+func (i *index) IsMetadataModified(path string, info os.FileInfo) (statsModified, timesModified bool) {
+	if !i.IsTracked(path) {
+		return false, false
+	}
+
+	existingEntry := i.entryMap[path]
+	testEntry := NewEntry(path, "", info)
+
+	statsModified = existingEntry.header.Mode != testEntry.header.Mode || existingEntry.header.Size != existingEntry.header.Size
+	timesModified = existingEntry.header.CtimeSec != testEntry.header.CtimeSec ||
+		existingEntry.header.CtimeNsec != testEntry.header.CtimeNsec ||
+		existingEntry.header.MtimeSec != testEntry.header.MtimeSec ||
+		existingEntry.header.MtimeNsec != testEntry.header.MtimeNsec
+
+	return
+}
+
+func (i *index) GetEntry(path string) (e *Entry, exists bool) {
+	e, exists = i.entryMap[path]
+	return
 }
