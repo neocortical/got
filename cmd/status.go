@@ -5,11 +5,19 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/neocortical/got/blob"
 	"github.com/neocortical/got/index"
 	"github.com/neocortical/got/repository"
 	"github.com/spf13/cobra"
+)
+
+const (
+	statusWorkspaceModified = 0b0001
+	statusWorkspaceDeleted  = 0b0010
+	statusindexModified     = 0b0100
+	statusIndexDeleted      = 0b1000
 )
 
 var (
@@ -34,8 +42,9 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	var untracked []string
-	var modified []string
+	var modified = map[string]int{}
 	var untrackedSet = map[string]struct{}{}
+	var workspaceFileset = map[string]struct{}{}
 	err = filepath.Walk(wd, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -49,16 +58,18 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 		}
 
 		relativePath := toRelativePath(path)
+		workspaceFileset[relativePath] = struct{}{}
+
 		if !idx.IsTracked(relativePath) {
-			path := idx.FirstUntrackedPath(relativePath)
-			if _, seen := untrackedSet[path]; !seen {
-				untrackedSet[path] = struct{}{}
-				untracked = append(untracked, path)
+			relativePath := idx.FirstUntrackedPath(relativePath)
+			if _, seen := untrackedSet[relativePath]; !seen {
+				untrackedSet[relativePath] = struct{}{}
+				untracked = append(untracked, relativePath)
 			}
 		} else {
 			statModified, timesModified := idx.IsMetadataModified(relativePath, info)
 			if statModified {
-				modified = append(modified, path)
+				modified[path] |= statusWorkspaceModified
 			}
 
 			if !timesModified {
@@ -90,7 +101,7 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 				return nil
 			}
 
-			modified = append(modified, relativePath)
+			modified[relativePath] |= statusWorkspaceModified
 		}
 
 		return nil
@@ -100,8 +111,22 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 		return fmt.Errorf("error walking workspace: %w", err)
 	}
 
-	for _, path := range modified {
-		fmt.Fprintln(stdout, " M", path)
+	fmt.Println(workspaceFileset)
+	for _, entry := range idx.Entries() {
+		fmt.Println(entry.Name())
+		if _, stillExists := workspaceFileset[entry.Name()]; !stillExists {
+			modified[entry.Name()] |= statusWorkspaceDeleted
+		}
+	}
+
+	var modifiedPaths []string
+	for path := range modified {
+		modifiedPaths = append(modifiedPaths, path)
+	}
+	sort.Strings(modifiedPaths)
+
+	for _, path := range modifiedPaths {
+		fmt.Fprintf(stdout, "%s %s\n", porcelainStatus(modified[path]), path)
 	}
 
 	for _, path := range untracked {
@@ -109,5 +134,25 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	err = idx.WriteUpdates()
+	return
+}
+
+func porcelainStatus(bitfield int) (result string) {
+	if bitfield&statusindexModified > 0 {
+		result = "M"
+	} else if bitfield&statusIndexDeleted > 0 {
+		result = "D"
+	} else {
+		result = " "
+	}
+
+	if bitfield&statusWorkspaceModified > 0 {
+		result += "M"
+	} else if bitfield&statusWorkspaceDeleted > 0 {
+		result += "D"
+	} else {
+		result += " "
+	}
+
 	return
 }

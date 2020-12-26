@@ -73,3 +73,10 @@ func initOrDie(t *testing.T) {
 		t.Fatalf("expected no errors during init but got: %v", err)
 	}
 }
+
+func deleteFile(t *testing.T, filename string) {
+	err := os.RemoveAll(path.Join(wd, filename))
+	if err != nil {
+		t.Fatalf("error deleting file: %v", err)
+	}
+}

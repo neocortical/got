@@ -194,3 +194,49 @@ func TestReportsFilesWithChangedContents(t *testing.T) {
 		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
 	}
 }
+
+func TestStatusReportsDeletedFiles(t *testing.T) {
+	outbuf, errbuf := setUpTestWorkspace(t, nil)
+	defer tearDownTestWorkspace()
+
+	setupStatusChangedFixtureOrDie(t)
+	outbuf.Reset()
+
+	deleteFile(t, "a/2.txt")
+
+	err := executeStatus(statusCmd, []string{})
+	if err != nil {
+		t.Errorf("expected no errors but got: %v", err)
+	}
+	if errbuf.Len() > 0 {
+		t.Errorf("expected no error output but got: %s", errbuf.String())
+	}
+	expected := " D a/2.txt\n"
+
+	if outbuf.String() != expected {
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
+	}
+}
+
+func TestStatusReportsDeletedFilesInDeletedDirectories(t *testing.T) {
+	outbuf, errbuf := setUpTestWorkspace(t, nil)
+	defer tearDownTestWorkspace()
+
+	setupStatusChangedFixtureOrDie(t)
+	outbuf.Reset()
+
+	deleteFile(t, "a")
+
+	err := executeStatus(statusCmd, []string{})
+	if err != nil {
+		t.Errorf("expected no errors but got: %v", err)
+	}
+	if errbuf.Len() > 0 {
+		t.Errorf("expected no error output but got: %s", errbuf.String())
+	}
+	expected := " D a/2.txt\n D a/b/3.txt\n"
+
+	if outbuf.String() != expected {
+		t.Errorf("expected output \n%s\n but got: \n%s\n", expected, outbuf.String())
+	}
+}

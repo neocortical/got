@@ -118,7 +118,7 @@ func (e *Entry) ModeString() string {
 }
 
 func (e *Entry) Name() string {
-	return e.Basename()
+	return e.pathname
 }
 
 func (e *Entry) OID() string {
