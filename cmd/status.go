@@ -9,6 +9,7 @@ import (
 
 	"github.com/neocortical/got/blob"
 	"github.com/neocortical/got/index"
+	"github.com/neocortical/got/ref"
 	"github.com/neocortical/got/repository"
 	"github.com/spf13/cobra"
 )
@@ -34,6 +35,7 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 	repo := repository.NewRepo(workspaceDir)
 	idx := repo.Index()
 	db := repo.Database()
+	refs := repo.Refs()
 
 	err = idx.LoadForUpdate()
 	if err != nil {
@@ -112,7 +114,7 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 	}
 
 	for _, entry := range idx.Entries() {
-		fmt.Println(entry.Name())
+		// fmt.Println(entry.Name())
 		if _, stillExists := workspaceFileset[entry.Name()]; !stillExists {
 			modified[entry.Name()] |= statusWorkspaceDeleted
 		}
@@ -123,6 +125,22 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 		modifiedPaths = append(modifiedPaths, path)
 	}
 	sort.Strings(modifiedPaths)
+
+	// cache/HEAD changes
+	headCommitOID, err := refs.ReadHead()
+	if err != nil {
+		return fmt.Errorf("error reading head: %w", err)
+	}
+
+	headCommitObj, err := db.Read(headCommitOID)
+	if err != nil {
+		return fmt.Errorf("error reading head commit from database: %w", err)
+	}
+
+	headCommit, err := ref.DeserializeCommit(headCommitObj.Serialize())
+	if err != nil {
+		return fmt.Errorf("error reading/parsing head commit: %w", err)
+	}
 
 	for _, path := range modifiedPaths {
 		fmt.Fprintf(stdout, "%s %s\n", porcelainStatus(modified[path]), path)
