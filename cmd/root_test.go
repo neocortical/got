@@ -23,7 +23,10 @@ func setUpTestWorkspace(t *testing.T, env map[string]string) (outbuf, errbuf *by
 	wd = tempdir
 
 	if env == nil {
-		env = map[string]string{}
+		env = map[string]string{
+			"GIT_AUTHOR_NAME":  "Nathan Smith",
+			"GIT_AUTHOR_EMAIL": "nathan@neocortical.net",
+		}
 	}
 	getenv = func(key string) string {
 		return env[key]

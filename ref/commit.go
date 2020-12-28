@@ -27,18 +27,18 @@ func (a Author) String() string {
 }
 
 type Commit struct {
-	parent  string
-	oid     string
-	author  Author
-	message string
+	Parent  string
+	TreeOID string
+	Author  Author
+	Message string
 }
 
-func NewCommit(parent string, oid string, author Author, message string) Commit {
+func NewCommit(parent string, treeOID string, author Author, message string) Commit {
 	return Commit{
-		parent:  parent,
-		oid:     oid,
-		author:  author,
-		message: message,
+		Parent:  parent,
+		TreeOID: treeOID,
+		Author:  author,
+		Message: message,
 	}
 }
 
@@ -89,11 +89,11 @@ func (c Commit) Type() string {
 
 func (c Commit) Serialize() []byte {
 	var parentLine string
-	if c.parent != "" {
-		parentLine = fmt.Sprintf("parent %s\n", c.parent)
+	if c.Parent != "" {
+		parentLine = fmt.Sprintf("parent %s\n", c.Parent)
 	}
 
-	data := fmt.Sprintf("tree %s\n%sauthor %s\ncommitter %s\n\n%s\n", c.oid, parentLine, c.author.String(), c.author.String(), c.message)
+	data := fmt.Sprintf("tree %s\n%sauthor %s\ncommitter %s\n\n%s\n", c.TreeOID, parentLine, c.Author.String(), c.Author.String(), c.Message)
 
 	return []byte(data)
 }

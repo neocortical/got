@@ -132,14 +132,18 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 		return fmt.Errorf("error reading head: %w", err)
 	}
 
-	headCommitObj, err := db.Read(headCommitOID)
-	if err != nil {
-		return fmt.Errorf("error reading head commit from database: %w", err)
-	}
+	if headCommitOID != "" {
+		headCommitObj, err := db.Read(headCommitOID)
+		if err != nil {
+			return fmt.Errorf("error reading head commit from database: %w", err)
+		}
 
-	headCommit, err := ref.DeserializeCommit(headCommitObj.Serialize())
-	if err != nil {
-		return fmt.Errorf("error reading/parsing head commit: %w", err)
+		headCommit, err := ref.DeserializeCommit(headCommitObj.Serialize())
+		if err != nil {
+			return fmt.Errorf("error reading/parsing head commit: %w", err)
+		}
+
+		fmt.Println(headCommit)
 	}
 
 	for _, path := range modifiedPaths {

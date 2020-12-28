@@ -1,11 +1,15 @@
 package tree
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/neocortical/got/index"
 )
@@ -55,6 +59,66 @@ func (t *Tree) Serialize() []byte {
 	}
 
 	return buf.Bytes()
+}
+
+func DeserializeTree(data []byte) (result *Tree, err error) {
+	result = &Tree{
+		entries: map[string]Node{},
+	}
+
+	r := bufio.NewReader(bytes.NewBuffer(data))
+	var node Node
+
+	for err == nil {
+		node, err = deserializeNode(r)
+		if err == nil {
+			result.entries[node.Name()] = node
+		}
+	}
+	if err == io.EOF {
+		err = nil
+	}
+	return
+}
+
+func deserializeNode(r *bufio.Reader) (result Node, err error) {
+	header, err := r.ReadString('\x00')
+	if err != nil {
+		return
+	}
+
+	divider := strings.Index(header, " ")
+	if divider == -1 {
+		return result, fmt.Errorf("invalid tree node header: '%s'", header)
+	}
+	mode := header[:divider]
+
+	name := header[divider+1 : len(header)-1]
+
+	var oidBuf = make([]byte, 20)
+	n, err := r.Read(oidBuf)
+	if err != nil {
+		return
+	}
+	if n != 20 {
+		return result, errors.New("invalid tree node format")
+	}
+
+	oid := hex.EncodeToString(oidBuf)
+
+	if mode == dirModeString {
+		return &Tree{
+			name:    name,
+			oid:     oid,
+			entries: map[string]Node{},
+		}, nil
+	}
+
+	return stubNode{
+		name: name,
+		mode: mode,
+		oid:  oid,
+	}, nil
 }
 
 func BuildFromIndex(entries []*index.Entry) (result *Tree, err error) {
