@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 
 	"github.com/neocortical/got/blob"
 	"github.com/neocortical/got/index"
+	"github.com/neocortical/got/object"
 	"github.com/neocortical/got/ref"
 	"github.com/neocortical/got/repository"
+	"github.com/neocortical/got/tree"
 	"github.com/spf13/cobra"
 )
 
@@ -115,8 +118,8 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 
 	for _, entry := range idx.Entries() {
 		// fmt.Println(entry.Name())
-		if _, stillExists := workspaceFileset[entry.Name()]; !stillExists {
-			modified[entry.Name()] |= statusWorkspaceDeleted
+		if _, stillExists := workspaceFileset[entry.Path()]; !stillExists {
+			modified[entry.Path()] |= statusWorkspaceDeleted
 		}
 	}
 
@@ -143,7 +146,10 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 			return fmt.Errorf("error reading/parsing head commit: %w", err)
 		}
 
-		fmt.Println(headCommit)
+		err = showTree(db, headCommit.TreeOID, "")
+		if err != nil {
+			return fmt.Errorf("error showing HEAD commit tree")
+		}
 	}
 
 	for _, path := range modifiedPaths {
@@ -157,6 +163,37 @@ func executeStatus(cmd *cobra.Command, args []string) (err error) {
 	err = idx.WriteUpdates()
 	return
 }
+
+func showTree(db object.Database, rootOID string, pathPrefix string) (err error) {
+	treeObj, err := db.Read(rootOID)
+	if err != nil {
+		return fmt.Errorf("error reading/parsing head tree: %w", err)
+	}
+
+	headTree, err := tree.DeserializeTree(treeObj.Serialize())
+	if err != nil {
+		return fmt.Errorf("error deserializing head tree: %w", err)
+	}
+
+	for _, e := range headTree.Entries() {
+		if e.ModeString() == "40000" {
+			err = showTree(db, e.OID(), path.Join(pathPrefix, e.Name()))
+		} else {
+			fmt.Printf("%8s %s %s\n", e.ModeString(), e.OID(), path.Join(pathPrefix, e.Name()))
+		}
+	}
+
+	return nil
+}
+
+// def show_tree(repo, oid, prefix = Pathname.new(""))
+// tree = repo.database.load(oid)
+// tree.entries.each do |name, entry| path = prefix.join(name)
+// if entry.tree?
+// show_tree(repo, entry.oid, path) else
+// mode = entry.mode.to_s(8)
+// puts "#{ mode } #{ entry.oid } #{ path }" end
+// end end
 
 func porcelainStatus(bitfield int) (result string) {
 	if bitfield&statusindexModified > 0 {

@@ -35,9 +35,20 @@ func NewDatabase(dir string) Database {
 
 func (db *database) Store(s Storable) (oid string, err error) {
 	data := s.Serialize()
-	oid = GenerateOID(data)
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("%s %d\x00", s.Type(), len(data)))
+	buf.Write(data)
+	objData := buf.Bytes()
+
+	oid = GenerateOID(objData)
 
 	objectFilename := db.objectPath(oid)
+
+	// short circuit if object exists
+	if _, err = os.Stat(objectFilename); err == nil {
+		return
+	}
+
 	dir, _ := filepath.Split(objectFilename)
 
 	_, err = os.Stat(dir)
@@ -50,23 +61,14 @@ func (db *database) Store(s Storable) (oid string, err error) {
 		return
 	}
 
-	var buf bytes.Buffer
-	w := zlib.NewWriter(&buf)
-	_, err = w.Write([]byte(fmt.Sprintf("%s %d\x00", s.Type(), len(data))))
+	var buf2 bytes.Buffer
+	w := zlib.NewWriter(&buf2)
+	_, err = w.Write(objData)
 	if err != nil {
 		return
 	}
 
-	_, err = w.Write(data)
-	if err != nil {
-		return
-	}
 	w.Close()
-
-	// short circuit if object exists
-	if _, err = os.Stat(objectFilename); err == nil {
-		return
-	}
 
 	l := lock.NewLockfile(objectFilename)
 	err = l.Acquire()
@@ -74,7 +76,7 @@ func (db *database) Store(s Storable) (oid string, err error) {
 		return oid, fmt.Errorf("Unable to lock object for writing: %w", err)
 	}
 
-	err = l.Write(buf.Bytes())
+	err = l.Write(buf2.Bytes())
 	if err != nil {
 		return oid, fmt.Errorf("Unable to write object: %w", err)
 	}

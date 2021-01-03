@@ -30,9 +30,9 @@ func TestStoreAndRetreiveGenericStorable(t *testing.T) {
 		t.Fatalf("expected no error but got %v", err)
 	}
 
-	expectedOID := "1f09d30c707d53f3d16c530dd73d70a6ce7596a9"
+	expectedOID := "30f51a3fba5274d53522d0f19748456974647b4f"
 	if actualOID != expectedOID {
-		t.Errorf("expected OID '%s' but got '%s'", "abc123", actualOID)
+		t.Errorf("expected OID '%s' but got '%s'", expectedOID, actualOID)
 	}
 
 	f, err := os.Open(db.(*database).objectPath(actualOID))

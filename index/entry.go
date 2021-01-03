@@ -94,6 +94,10 @@ func (e *Entry) Basename() string {
 	return filepath.Base(e.pathname)
 }
 
+func (e *Entry) Path() string {
+	return e.pathname
+}
+
 func (e *Entry) Encode() []byte {
 	buf := new(bytes.Buffer)
 
@@ -118,7 +122,7 @@ func (e *Entry) ModeString() string {
 }
 
 func (e *Entry) Name() string {
-	return e.pathname
+	return e.Basename()
 }
 
 func (e *Entry) OID() string {
